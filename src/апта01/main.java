@@ -101,7 +101,7 @@ class Fleet {
         return garages.removeIf(g -> g.getName().equalsIgnoreCase(name));
     }
 
-    // Поиск транспортного средства по модели во всех гаражах
+
     public void findVehicle(String model) {
         System.out.println("\nПоиск модели '" + model + "' в автопарке:");
         boolean found = false;
@@ -125,12 +125,12 @@ public class main {
     public static void runAutomatedTest() {
         System.out.println("=== ЗАПУСК ТЕСТИРОВАНИЯ АВТОПАРКА ===");
 
-        // 1. Создание транспорта
+
         Car car1 = new Car("Toyota", "Camry", 2022, 4, "Автомат");
         Car car2 = new Car("Tesla", "Model 3", 2023, 4, "Редуктор");
         Motorcycle bike1 = new Motorcycle("Harley", "davidson", 2021, "Cruiser", false);
 
-        // 2. Создание гаражей и добавление транспорта (Композиция)
+
         Garage cityGarage = new Garage("Городской Гараж");
         cityGarage.addVehicle(car1);
         cityGarage.addVehicle(bike1);
@@ -138,32 +138,31 @@ public class main {
         Garage privateGarage = new Garage("Частный Гараж");
         privateGarage.addVehicle(car2);
 
-        // 3. Создание автопарка и добавление гаражей (Композиция)
+
         Fleet myFleet = new Fleet();
         myFleet.addGarage(cityGarage);
         myFleet.addGarage(privateGarage);
 
-        // 4. Проверка работы двигателей (Полиморфизм)
+
         System.out.println("\n--- Проверка двигателей ---");
         car1.startEngine();
         bike1.startEngine();
         bike1.stopEngine();
 
-        // 5. Поиск транспорта
+
         myFleet.findVehicle("Camry");
         myFleet.findVehicle("Model 3");
 
-        // 6. Тест удаления транспорта
+
         System.out.println("\n--- Удаление транспорта ---");
         boolean removed = cityGarage.removeVehicle("Iron 883");
         System.out.println("Удаление Iron 883 из городского гаража: " + (removed ? "Успешно" : "Ошибка"));
 
-        // 7. Тест удаления гаража
         System.out.println("\n--- Удаление гаража ---");
         boolean garageRemoved = myFleet.removeGarage("Частный Гараж");
         System.out.println("Удаление 'Частный Гараж' из автопарка: " + (garageRemoved ? "Успешно" : "Ошибка"));
 
-        // Итоговый поиск
+
         myFleet.findVehicle("Model 3"); // Должно быть не найдено, так как гараж удален
 
         System.out.println("\n=== ТЕСТИРОВАНИЕ ЗАВЕРШЕНО ===");

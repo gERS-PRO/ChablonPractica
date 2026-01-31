@@ -1,8 +1,9 @@
+package s1;
 import java.util.Scanner;
 import java.util.ArrayList;
 import java.util.List;
 
-// 1. Интерфейс для предметов, которые можно выдавать
+
 interface Borrowable {
     void borrowItem();
     void returnItem();
@@ -10,7 +11,7 @@ interface Borrowable {
     int getAvailableCount();
 }
 
-// 2. Абстрактный класс предмета библиотеки
+
 abstract class LibraryItem {
     protected String title;
     protected String itemId;
@@ -38,7 +39,7 @@ abstract class LibraryItem {
     }
 }
 
-// 3. Класс Книга
+
 class Book extends LibraryItem implements Borrowable {
     private String author;
     private String isbn;
@@ -65,7 +66,7 @@ class Book extends LibraryItem implements Borrowable {
     public boolean isAvailable() { return availableCount > 0; }
 }
 
-// 4. Класс Журнал (как дополнительный пример)
+
 class Magazine extends LibraryItem implements Borrowable {
     private int issueNumber;
 
@@ -90,7 +91,7 @@ class Magazine extends LibraryItem implements Borrowable {
     public boolean isAvailable() { return availableCount > 0; }
 }
 
-// 5. Класс Читатель
+
 class Reader {
     private String name;
     private String readerId;
@@ -130,29 +131,29 @@ class Reader {
     }
 }
 
-// 6. Класс Библиотека
+
 class Library {
     private List<LibraryItem> items = new ArrayList<>();
     private List<Reader> readers = new ArrayList<>();
 
-    // Добавление предмета
+
     public void addItem(LibraryItem item) {
         items.add(item);
         System.out.println("✓ В базу добавлен предмет: " + item.getTitle());
     }
 
-    // ТРЕБОВАНИЕ: Удаление предмета (книги/журнала)
+
     public boolean removeItem(String itemId) {
         return items.removeIf(item -> item.getItemId().equals(itemId));
     }
 
-    // Регистрация читателя
+
     public void registerReader(Reader reader) {
         readers.add(reader);
         System.out.println("✓ Зарегистрирован читатель: " + reader.getName());
     }
 
-    // ТРЕБОВАНИЕ: Удаление читателя
+
     public boolean removeReader(String readerId) {
         return readers.removeIf(reader -> reader.getReaderId().equals(readerId));
     }
@@ -184,7 +185,7 @@ class Library {
     }
 }
 
-// 7. Основной класс программы
+
 public class Main {
     private static Scanner scanner = new Scanner(System.in);
     private static Library library = new Library();
@@ -292,30 +293,29 @@ public class Main {
     private static void runAutomatedTest() {
         System.out.println("\n===== ЗАПУСК АВТОМАТИЧЕСКОГО ТЕСТИРОВАНИЯ =====");
 
-        // 1. Тест создания и добавления
+
         Book testBook = new Book("Тестовая Книга", "T1", "Автор Тест", "000-000", 2);
         library.addItem(testBook);
 
-        // 2. Тест регистрации читателя
         Reader testReader = new Reader("Тестовый Читатель", "TR1");
         library.registerReader(testReader);
 
-        // 3. Тест выдачи книги (проверка доступности)
+
         System.out.println("\n--- Тест выдачи ---");
         testReader.borrowItem(testBook); // Должно сработать, осталось 1
         System.out.println("Осталось в библиотеке: " + testBook.getAvailableCount());
 
-        // 4. Тест возврата книги
+
         System.out.println("\n--- Тест возврата ---");
         testReader.returnItem(testBook); // Должно сработать, снова 2
         System.out.println("Осталось в библиотеке: " + testBook.getAvailableCount());
 
-        // 5. Тест удаления книги
+
         System.out.println("\n--- Тест удаления ---");
         boolean removed = library.removeItem("T1");
         System.out.println("Результат удаления книги T1: " + (removed ? "Успешно" : "Ошибка"));
 
-        // 6. Тест удаления читателя
+
         boolean readerRemoved = library.removeReader("TR1");
         System.out.println("Результат удаления читателя TR1: " + (readerRemoved ? "Успешно" : "Ошибка"));
 
