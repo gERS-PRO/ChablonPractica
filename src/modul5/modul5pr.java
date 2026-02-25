@@ -1,184 +1,157 @@
 package modul5;
 import java.io.*;
-import java.nio.file.*;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.*;
 
-// Уровни логирования
-enum LogLevel {
-    INFO(1), WARNING(2), ERROR(3);
-    final int priority;
-    LogLevel(int priority) { this.priority = priority; }
-}
+// ==========================================
+// 1. ПАТТЕРН SINGLETON + ЛОГИРОВАНИЕ
+// ==========================================
+enum LogLevel { INFO, WARNING, ERROR }
 
-// Главный класс программы
-public class modul5pr {
-    public static void main(String[] args) {
-        System.out.println("=== Запуск системы логирования (Singleton) ===\n");
-
-        // 1. Получаем экземпляр логгера
-        Logger logger = Logger.getInstance();
-
-        // 3. Имитируем загрузку конфигурации
-        // В реальности здесь был бы вызов logger.loadConfig("config.txt");
-        logger.setConfig(LogLevel.INFO, "app_logs.txt", true);
-
-        // 4 & 6. Тестирование многопоточности
-        ExecutorService executor = Executors.newFixedThreadPool(4);
-
-        for (int i = 1; i <= 6; i++) {
-            final int threadId = i;
-            executor.execute(() -> {
-                Logger logRef = Logger.getInstance(); // Всегда один и тот же объект
-                logRef.log("Поток-" + threadId + " начал работу", LogLevel.INFO);
-
-                if (threadId % 2 == 0) {
-                    logRef.log("Поток-" + threadId + " обнаружил проблему!", LogLevel.WARNING);
-                }
-                if (threadId % 3 == 0) {
-                    logRef.log("Поток-" + threadId + " упал с ошибкой!", LogLevel.ERROR);
-                }
-            });
-        }
-
-        executor.shutdown();
-        try {
-            if (executor.awaitTermination(5, TimeUnit.SECONDS)) {
-                System.out.println("\n=== Все потоки завершили запись ===\n");
-            }
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        // 5. Чтение логов через LogReader
-        LogReader reader = new LogReader("app_logs.txt");
-
-        System.out.println("--- Фильтр: Только ОШИБКИ ---");
-        reader.readAndDisplay(LogLevel.ERROR);
-
-        System.out.println("\n--- Фильтр: По времени (последние 5 минут) ---");
-        reader.readRecent(5);
-    }
-}
-
-// 1. Класс Logger (Singleton)
 class Logger {
-    // volatile важен для корректной работы Double-Checked Locking
     private static volatile Logger instance;
-
     private LogLevel currentLevel = LogLevel.INFO;
-    private String logFilePath = "log.txt";
-    private boolean logToConsole = true;
-    private final long MAX_FILE_SIZE = 1024; // 1 КБ для демонстрации ротации
+    private String logFilePath = "app_logs.txt";
 
-    // Приватный конструктор
-    private Logger() {
-        // Инициализация ресурсов
-    }
+    private Logger() {}
 
-    // Потокобезопасный GetInstance (Double-Checked Locking)
     public static Logger getInstance() {
-        Logger localInstance = instance;
-        if (localInstance == null) {
+        if (instance == null) {
             synchronized (Logger.class) {
-                localInstance = instance;
-                if (localInstance == null) {
-                    instance = localInstance = new Logger();
-                }
+                if (instance == null) instance = new Logger();
             }
         }
-        return localInstance;
+        return instance;
     }
 
-    // 3. Установка конфигурации
-    public void setConfig(LogLevel level, String path, boolean toConsole) {
+    public void setConfig(LogLevel level, String path) {
         this.currentLevel = level;
         this.logFilePath = path;
-        this.logToConsole = toConsole;
     }
 
-    // 2. Основной метод логирования (синхронизирован для записи в файл)
     public synchronized void log(String message, LogLevel level) {
-        if (level.priority < currentLevel.priority) return;
+        // Проверка уровня: пишем только если уровень сообщения >= текущего
+        if (level.ordinal() < currentLevel.ordinal()) return;
 
-        checkRotation(); // Доп. задача: Ротация
+        String logEntry = "[" + level + "] " + message;
+        System.out.println(logEntry); // В консоль
 
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-        String formattedMessage = String.format("[%s] [%s] %s", timestamp, level, message);
-
-        // Доп. задача 2: Логирование в несколько источников
-        if (logToConsole) {
-            System.out.println(formattedMessage);
-        }
-
-        try (PrintWriter writer = new PrintWriter(new FileWriter(logFilePath, true))) {
-            writer.println(formattedMessage);
-        } catch (IOException e) {
-            System.err.println("Ошибка записи в лог: " + e.getMessage());
-        }
-    }
-
-    // Доп. задача 1: Ротация файлов
-    private void checkRotation() {
-        File file = new File(logFilePath);
-        if (file.exists() && file.length() > MAX_FILE_SIZE) {
-            String newName = "log_archive_" + System.currentTimeMillis() + ".txt";
-            file.renameTo(new File(newName));
-            // Новый файл создастся автоматически при следующей записи
-        }
-    }
-
-    // 4. Загрузка из файла (упрощенная версия для примера)
-    public void loadConfig(String configPath) {
-        try (Scanner sc = new Scanner(new File(configPath))) {
-            while (sc.hasNextLine()) {
-                String[] parts = sc.nextLine().split("=");
-                if (parts[0].equals("level")) this.currentLevel = LogLevel.valueOf(parts[1]);
-                if (parts[0].equals("path")) this.logFilePath = parts[1];
-            }
-        } catch (Exception e) {
-            System.out.println("Конфиг не найден, используем настройки по умолчанию.");
-        }
+        try (PrintWriter out = new PrintWriter(new FileWriter(logFilePath, true))) {
+            out.println(logEntry); // В файл
+        } catch (IOException e) { e.printStackTrace(); }
     }
 }
 
-// 5. Класс LogReader
-class LogReader {
-    private String filePath;
+// ==========================================
+// 2. ПАТТЕРН BUILDER (Отчеты со стилями)
+// ==========================================
+class ReportStyle {
+    String bgColor;
+    int fontSize;
+    public ReportStyle(String bg, int size) { this.bgColor = bg; this.fontSize = size; }
+}
 
-    public LogReader(String filePath) {
-        this.filePath = filePath;
+class Report {
+    String header, content, footer;
+    List<String> sections = new ArrayList<>();
+    ReportStyle style;
+
+    public void export() {
+        System.out.println("--- Exporting Report ---");
+        System.out.println("Style: [BG: " + style.bgColor + ", Size: " + style.fontSize + "]");
+        System.out.println("Header: " + header);
+        for(String s : sections) System.out.println("Section: " + s);
+        System.out.println("Footer: " + footer);
+    }
+}
+
+interface IReportBuilder {
+    void setHeader(String h);
+    void addSection(String name, String content);
+    void setFooter(String f);
+    void setStyle(ReportStyle style);
+    Report getReport();
+}
+
+class HtmlReportBuilder implements IReportBuilder {
+    private Report report = new Report();
+    public void setHeader(String h) { report.header = "<h1>" + h + "</h1>"; }
+    public void addSection(String n, String c) { report.sections.add("<div>" + n + ": " + c + "</div>"); }
+    public void setFooter(String f) { report.footer = "<footer>" + f + "</footer>"; }
+    public void setStyle(ReportStyle s) { report.style = s; }
+    public Report getReport() { return report; }
+}
+
+class ReportDirector {
+    public void construct(IReportBuilder builder) {
+        builder.setHeader("Standard Report");
+        builder.addSection("Introduction", "This is the content.");
+        builder.setFooter("Page 1");
+        builder.setStyle(new ReportStyle("White", 12));
+    }
+}
+
+// ==========================================
+// 3. ПАТТЕРН PROTOTYPE (Глубокое копирование)
+// ==========================================
+class Weapon implements Cloneable {
+    String name;
+    public Weapon(String n) { this.name = n; }
+    @Override public Weapon clone() throws CloneNotSupportedException { return (Weapon) super.clone(); }
+}
+
+class Character implements Cloneable {
+    String name;
+    Weapon weapon;
+    List<String> skills = new ArrayList<>();
+
+    public Character(String n, Weapon w) { this.name = n; this.weapon = w; }
+
+    @Override
+    public Character clone() throws CloneNotSupportedException {
+        Character copy = (Character) super.clone();
+        copy.weapon = this.weapon.clone(); // Глубокое копирование объекта
+        copy.skills = new ArrayList<>(this.skills); // Глубокое копирование списка
+        return copy;
     }
 
-    // Фильтрация по уровню
-    public void readAndDisplay(LogLevel filter) {
-        processFile(line -> line.contains("[" + filter + "]"));
+    public void info() {
+        System.out.println("Hero: " + name + ", Weapon: " + weapon.name + ", Skills: " + skills);
     }
+}
 
-    // Доп. задача 3: Фильтрация по времени (упрощенная)
-    public void readRecent(int minutes) {
-        LocalDateTime limit = LocalDateTime.now().minusMinutes(minutes);
-        processFile(line -> {
-            try {
-                String datePart = line.substring(1, 20);
-                LocalDateTime logTime = LocalDateTime.parse(datePart, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-                return logTime.isAfter(limit);
-            } catch (Exception e) { return false; }
-        });
-    }
+// ==========================================
+// ГЛАВНЫЙ КЛАСС (Тестирование)
+// ==========================================
+public class modul5pr {
+    public static void main(String[] args) throws Exception {
+        // 1. Тест Singleton (Многопоточность)
+        System.out.println("=== SINGLETON TEST ===");
+        Logger logger = Logger.getInstance();
+        ExecutorService exec = Executors.newFixedThreadPool(2);
+        exec.execute(() -> logger.log("Thread 1 writing...", LogLevel.INFO));
+        exec.execute(() -> logger.log("Thread 2 writing...", LogLevel.ERROR));
+        exec.shutdown();
+        exec.awaitTermination(1, TimeUnit.SECONDS);
 
-    private void processFile(java.util.function.Predicate<String> filter) {
-        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (filter.test(line)) {
-                    System.out.println(line);
-                }
-            }
-        } catch (IOException e) {
-            System.err.println("Ошибка чтения логов: " + e.getMessage());
-        }
+        // 2. Тест Builder
+        System.out.println("\n=== BUILDER TEST ===");
+        IReportBuilder htmlBuilder = new HtmlReportBuilder();
+        ReportDirector director = new ReportDirector();
+        director.construct(htmlBuilder);
+        htmlBuilder.getReport().export();
+
+        // 3. Тест Prototype
+        System.out.println("\n=== PROTOTYPE TEST ===");
+        Character original = new Character("Warrior", new Weapon("Axe"));
+        original.skills.add("Strike");
+
+        Character clone = original.clone();
+        clone.name = "Clone";
+        clone.weapon.name = "Dagger"; // Не должно изменить оригинал
+        clone.skills.add("Hide");    // Не должно изменить оригинал
+
+        System.out.print("Original: "); original.info();
+        System.out.print("Clone: "); clone.info();
     }
 }
