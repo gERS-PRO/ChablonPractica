@@ -78,22 +78,22 @@ interface IObserver {
 
 // 2. Интерфейс субъекта
 interface ISubject {
-    void registerObserver(String stock, IObserver observer);
-    void removeObserver(String stock, IObserver observer);
+    void registerObserver(String stock, modul06DZ.IObserver observer);
+    void removeObserver(String stock, modul06DZ.IObserver observer);
     void notifyObservers(String stock, double price);
 }
 
 // 3. Класс Биржи (Субъект)
-class StockExchange implements ISubject {
+class StockExchange implements modul06DZ.ISubject {
     // Храним список подписчиков для каждой акции отдельно
-    private Map<String, List<IObserver>> observers = new HashMap<>();
+    private Map<String, List<modul06DZ.IObserver>> observers = new HashMap<>();
 
-    public void registerObserver(String stock, IObserver observer) {
+    public void registerObserver(String stock, modul06DZ.IObserver observer) {
         observers.computeIfAbsent(stock, k -> new ArrayList<>()).add(observer);
         System.out.println("Система: Добавлен подписчик на акцию " + stock);
     }
 
-    public void removeObserver(String stock, IObserver observer) {
+    public void removeObserver(String stock, modul06DZ.IObserver observer) {
         if (observers.containsKey(stock)) {
             observers.get(stock).remove(observer);
         }
@@ -101,7 +101,7 @@ class StockExchange implements ISubject {
 
     public void notifyObservers(String stock, double price) {
         if (observers.containsKey(stock)) {
-            for (IObserver observer : observers.get(stock)) {
+            for (modul06DZ.IObserver observer : observers.get(stock)) {
                 // Имитация асинхронности через Thread
                 new Thread(() -> observer.update(stock, price)).start();
             }
@@ -110,7 +110,7 @@ class StockExchange implements ISubject {
 }
 
 // 4. Конкретные наблюдатели
-class Trader implements IObserver {
+class Trader implements modul06DZ.IObserver {
     private String name;
     public Trader(String name) { this.name = name; }
 
@@ -119,7 +119,7 @@ class Trader implements IObserver {
     }
 }
 
-class TradingRobot implements IObserver {
+class TradingRobot implements modul06DZ.IObserver {
     private double threshold;
     public TradingRobot(double threshold) { this.threshold = threshold; }
 
