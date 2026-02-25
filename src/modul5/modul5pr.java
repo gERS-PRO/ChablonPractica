@@ -4,7 +4,7 @@ import java.util.*;
 import java.util.concurrent.*;
 
 // ==========================================
-// 1. ПАТТЕРН SINGLETON + ЛОГИРОВАНИЕ
+// 1. ПАТТЕРН SINGLETON
 // ==========================================
 enum LogLevel { INFO, WARNING, ERROR }
 
