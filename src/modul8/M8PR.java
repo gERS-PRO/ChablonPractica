@@ -5,12 +5,12 @@ import java.util.*;
 // ЧАСТЬ 1: ПАТТЕРН ДЕКОРАТОР (Система отчетности)
 // ======================================================
 
-// 1. Интерфейс для всех отчетов
+
 interface IReport {
     String generate();
 }
 
-// 2. Базовый отчет по продажам
+
 class SalesReport implements IReport {
     @Override
     public String generate() {
@@ -18,7 +18,7 @@ class SalesReport implements IReport {
     }
 }
 
-// 2. Базовый отчет по пользователям
+
 class UserReport implements IReport {
     @Override
     public String generate() {
@@ -26,7 +26,7 @@ class UserReport implements IReport {
     }
 }
 
-// 3. Абстрактный декоратор
+//
 abstract class ReportDecorator implements IReport {
     protected IReport report;
 
@@ -40,7 +40,7 @@ abstract class ReportDecorator implements IReport {
     }
 }
 
-// 4. Конкретные декораторы
+//
 class DateFilterDecorator extends ReportDecorator {
     public DateFilterDecorator(IReport report) { super(report); }
     @Override
@@ -73,7 +73,7 @@ class PdfExportDecorator extends ReportDecorator {
     }
 }
 
-// Новый декоратор (доп. задание): Фильтр по сумме
+
 class AmountFilterDecorator extends ReportDecorator {
     public AmountFilterDecorator(IReport report) { super(report); }
     @Override
