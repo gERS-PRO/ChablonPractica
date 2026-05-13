@@ -1,173 +1,326 @@
-package modul06DZ;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
-// ==========================================
-// ЧАСТЬ 1: ПАТТЕРН СТРАТЕГИЯ (Оплата)
-// ==========================================
+abstract class InventoryEvent {
+    protected String itemName;
+    protected long timestamp;
 
-// 1. Интерфейс стратегии оплаты
-interface IPaymentStrategy {
-    void pay(double amount);
+    public InventoryEvent(String itemName) {
+        this.itemName = itemName;
+        this.timestamp = System.currentTimeMillis();
+    }
+
+    public String getItemName() {
+        return itemName;
+    }
+
+    public abstract String getDescription();
 }
 
-// 2. Конкретные реализации стратегий
-class CreditCardPayment implements IPaymentStrategy {
+class ItemAddedEvent extends InventoryEvent {
+    private int quantity;
+    private double price;
+
+    public ItemAddedEvent(String itemName, int quantity, double price) {
+        super(itemName);
+        this.quantity = quantity;
+        this.price = price;
+    }
+
     @Override
-    public void pay(double amount) {
-        System.out.println("Оплата $" + amount + " произведена через: Банковскую карту.");
+    public String getDescription() {
+        return "Добавлена партия товара " + itemName + ": " + quantity + " шт. по " + price + " руб.";
+    }
+
+    public int getQuantity() {
+        return quantity;
+    }
+
+    public double getPrice() {
+        return price;
     }
 }
 
-class PayPalPayment implements IPaymentStrategy {
+class ItemQuantityLowEvent extends InventoryEvent {
+    private int currentQuantity;
+    private int minLevel;
+
+    public ItemQuantityLowEvent(String itemName, int currentQuantity, int minLevel) {
+        super(itemName);
+        this.currentQuantity = currentQuantity;
+        this.minLevel = minLevel;
+    }
+
     @Override
-    public void pay(double amount) {
-        System.out.println("Оплата $" + amount + " произведена через: PayPal.");
+    public String getDescription() {
+        return "Критический уровень запаса товара " + itemName + ": осталось " + currentQuantity + " шт. (минимум: " + minLevel + ")";
+    }
+
+    public int getCurrentQuantity() {
+        return currentQuantity;
     }
 }
 
-class CryptoPayment implements IPaymentStrategy {
+class ItemMovedEvent extends InventoryEvent {
+    private String fromWarehouse;
+    private String toWarehouse;
+    private int quantity;
+
+    public ItemMovedEvent(String itemName, String fromWarehouse, String toWarehouse, int quantity) {
+        super(itemName);
+        this.fromWarehouse = fromWarehouse;
+        this.toWarehouse = toWarehouse;
+        this.quantity = quantity;
+    }
+
     @Override
-    public void pay(double amount) {
-        System.out.println("Оплата $" + amount + " произведена через: Криптовалюту (BTC/ETH).");
+    public String getDescription() {
+        return "Перемещение товара " + itemName + ": со склада " + fromWarehouse + " на склад " + toWarehouse + " (" + quantity + " шт.)";
+    }
+
+    public String getFromWarehouse() {
+        return fromWarehouse;
+    }
+
+    public String getToWarehouse() {
+        return toWarehouse;
     }
 }
 
-// 3. Класс контекста
-class PaymentContext {
-    private IPaymentStrategy strategy;
+class ItemUpdatedEvent extends InventoryEvent {
+    private String field;
+    private String oldValue;
+    private String newValue;
 
-    // Метод для установки или смены стратегии на лету
-    public void setPaymentStrategy(IPaymentStrategy strategy) {
-        this.strategy = strategy;
+    public ItemUpdatedEvent(String itemName, String field, String oldValue, String newValue) {
+        super(itemName);
+        this.field = field;
+        this.oldValue = oldValue;
+        this.newValue = newValue;
     }
 
-    public void executePayment(double amount) {
-        if (strategy == null) {
-            System.err.println("Ошибка: Способ оплаты не выбран!");
-        } else {
-            strategy.pay(amount);
+    @Override
+    public String getDescription() {
+        return "Изменение характеристик товара " + itemName + ": " + field + " (" + oldValue + " -> " + newValue + ")";
+    }
+
+    public String getField() {
+        return field;
+    }
+}
+
+enum UserRole {
+    WAREHOUSE_MANAGER, OPERATOR, QUALITY_CONTROLLER
+}
+
+interface Notification {
+    void sendNotification(String userName, String message);
+}
+
+class EmailNotification implements Notification {
+    @Override
+    public void sendNotification(String userName, String message) {
+        System.out.println("[EMAIL] Пользователю " + userName + ": " + message);
+    }
+}
+
+class SMSNotification implements Notification {
+    @Override
+    public void sendNotification(String userName, String message) {
+        System.out.println("[SMS] Пользователю " + userName + ": " + message);
+    }
+}
+
+class InAppNotification implements Notification {
+    @Override
+    public void sendNotification(String userName, String message) {
+        System.out.println("[IN-APP] Пользователю " + userName + ": " + message);
+    }
+}
+
+interface Observer {
+    void update(InventoryEvent event);
+}
+
+class WarehouseUser implements Observer {
+    private String name;
+    private UserRole role;
+    private List<Notification> notificationChannels;
+    private Set<Class<?>> subscribedEventTypes;
+
+    public WarehouseUser(String name, UserRole role) {
+        this.name = name;
+        this.role = role;
+        this.notificationChannels = new ArrayList<>();
+        this.subscribedEventTypes = new HashSet<>();
+        setupRoleSubscriptions();
+    }
+
+    private void setupRoleSubscriptions() {
+        switch (role) {
+            case WAREHOUSE_MANAGER:
+                subscribedEventTypes.add(ItemQuantityLowEvent.class);
+                subscribedEventTypes.add(ItemMovedEvent.class);
+                break;
+            case OPERATOR:
+                subscribedEventTypes.add(ItemAddedEvent.class);
+                subscribedEventTypes.add(ItemUpdatedEvent.class);
+                break;
+            case QUALITY_CONTROLLER:
+                subscribedEventTypes.add(ItemUpdatedEvent.class);
+                subscribedEventTypes.add(ItemAddedEvent.class);
+                subscribedEventTypes.add(ItemMovedEvent.class);
+                break;
         }
     }
-}
 
-// ==========================================
-// ЧАСТЬ 2: ПАТТЕРН НАБЛЮДАТЕЛЬ (Курсы валют)
-// ==========================================
+    public void addNotificationChannel(Notification notification) {
+        notificationChannels.add(notification);
+    }
 
-// 1. Интерфейс наблюдателя
-interface IObserver {
-    void update(String currency, double rate);
-}
+    public void subscribeToEvent(Class<?> eventType) {
+        subscribedEventTypes.add(eventType);
+    }
 
-// 2. Интерфейс субъекта
-interface ISubject {
-    void attach(IObserver observer);
-    void detach(IObserver observer);
-    void notifyObservers();
-}
-
-// 3. Конкретный субъект - Валютная биржа
-class CurrencyExchange implements ISubject {
-    private List<IObserver> observers = new ArrayList<>();
-    private String currencyName;
-    private double rate;
-
-    public void setRate(String currencyName, double rate) {
-        this.currencyName = currencyName;
-        this.rate = rate;
-        notifyObservers(); // Уведомляем всех при изменении курса
+    public void unsubscribeFromEvent(Class<?> eventType) {
+        subscribedEventTypes.remove(eventType);
     }
 
     @Override
-    public void attach(IObserver observer) {
+    public void update(InventoryEvent event) {
+        if (subscribedEventTypes.contains(event.getClass())) {
+            for (Notification channel : notificationChannels) {
+                channel.sendNotification(name + " (" + role + ")", event.getDescription());
+            }
+        }
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public UserRole getRole() {
+        return role;
+    }
+}
+
+interface Subject {
+    void attach(Observer observer);
+    void detach(Observer observer);
+    void notifyObservers(InventoryEvent event);
+}
+
+class InventoryItem implements Subject {
+    private String name;
+    private int quantity;
+    private String warehouse;
+    private String manufacturer;
+    private List<Observer> observers;
+    private int minQuantityLevel;
+
+    public InventoryItem(String name, int quantity, String warehouse, String manufacturer, int minLevel) {
+        this.name = name;
+        this.quantity = quantity;
+        this.warehouse = warehouse;
+        this.manufacturer = manufacturer;
+        this.minQuantityLevel = minLevel;
+        this.observers = new ArrayList<>();
+    }
+
+    @Override
+    public void attach(Observer observer) {
         observers.add(observer);
-        System.out.println("Система: Добавлен новый наблюдатель.");
     }
 
     @Override
-    public void detach(IObserver observer) {
+    public void detach(Observer observer) {
         observers.remove(observer);
-        System.out.println("Система: Наблюдатель удален.");
     }
 
     @Override
-    public void notifyObservers() {
-        for (IObserver observer : observers) {
-            observer.update(currencyName, rate);
+    public void notifyObservers(InventoryEvent event) {
+        for (Observer observer : observers) {
+            observer.update(event);
         }
     }
-}
 
-// 4. Конкретные наблюдатели
-class NewsAgency implements IObserver {
-    @Override
-    public void update(String currency, double rate) {
-        System.out.println("[НОВОСТИ]: Срочный выпуск! Курс " + currency + " теперь составляет " + rate);
+    public void addQuantity(int amount) {
+        this.quantity += amount;
+        notifyObservers(new ItemAddedEvent(name, amount, 0));
+    }
+
+    public void removeQuantity(int amount) {
+        this.quantity -= amount;
+        if (this.quantity < minQuantityLevel) {
+            notifyObservers(new ItemQuantityLowEvent(name, this.quantity, minQuantityLevel));
+        }
+    }
+
+    public void moveToWarehouse(String toWarehouse, int amount) {
+        String oldWarehouse = this.warehouse;
+        this.warehouse = toWarehouse;
+        notifyObservers(new ItemMovedEvent(name, oldWarehouse, toWarehouse, amount));
+    }
+
+    public void updateManufacturer(String newManufacturer) {
+        String oldManufacturer = this.manufacturer;
+        this.manufacturer = newManufacturer;
+        notifyObservers(new ItemUpdatedEvent(name, "Производитель", oldManufacturer, newManufacturer));
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public int getQuantity() {
+        return quantity;
+    }
+
+    public String getWarehouse() {
+        return warehouse;
     }
 }
 
-class BankSystem implements IObserver {
-    @Override
-    public void update(String currency, double rate) {
-        System.out.println("[БАНК]: Пересчет внутренних курсов обмена для " + currency + " по ставке " + rate);
-    }
-}
-
-class MobileAppUser implements IObserver {
-    private String userName;
-    public MobileAppUser(String name) { this.userName = name; }
-
-    @Override
-    public void update(String currency, double rate) {
-        System.out.println("[ПРИЛОЖЕНИЕ]: Уведомление для " + userName + ": " + currency + " изменился до " + rate);
-    }
-}
-
-// ==========================================
-// ГЛАВНЫЙ КЛАСС (Клиент)
-// ==========================================
 public class modul06dz {
     public static void main(String[] args) {
+        InventoryItem laptop = new InventoryItem("Ноутбук Dell XPS 13", 50, "Склад 1", "Dell", 10);
+        InventoryItem phone = new InventoryItem("Смартфон Samsung Galaxy", 30, "Склад 2", "Samsung", 5);
 
-        // --- ТЕСТ ПАТТЕРНА СТРАТЕГИЯ ---
-        System.out.println("=== ТЕСТ ПАТТЕРНА СТРАТЕГИЯ ===");
-        PaymentContext shop = new PaymentContext();
+        WarehouseUser warehouseManager = new WarehouseUser("Талапхан Е", UserRole.WAREHOUSE_MANAGER);
+        WarehouseUser operator = new WarehouseUser("Сергей Лазеров", UserRole.OPERATOR);
+        WarehouseUser qualityController = new WarehouseUser("Сергей Иванов", UserRole.QUALITY_CONTROLLER);
 
-        // Оплата картой
-        shop.setPaymentStrategy(new CreditCardPayment());
-        shop.executePayment(150.0);
+        warehouseManager.addNotificationChannel(new EmailNotification());
+        warehouseManager.addNotificationChannel(new SMSNotification());
 
-        // Смена стратегии на PayPal
-        shop.setPaymentStrategy(new PayPalPayment());
-        shop.executePayment(45.99);
+        operator.addNotificationChannel(new EmailNotification());
+        operator.addNotificationChannel(new InAppNotification());
 
-        // Оплата криптовалютой
-        shop.setPaymentStrategy(new CryptoPayment());
-        shop.executePayment(1200.0);
+        qualityController.addNotificationChannel(new InAppNotification());
 
+        laptop.attach(warehouseManager);
+        laptop.attach(operator);
+        laptop.attach(qualityController);
 
-        System.out.println("\n-----------------------------------\n");
+        phone.attach(warehouseManager);
+        phone.attach(operator);
+        phone.attach(qualityController);
 
+        System.out.println("=== Добавление новой партии ===");
+        laptop.addQuantity(20);
 
-        // --- ТЕСТ ПАТТЕРНА НАБЛЮДАТЕЛЬ ---
-        System.out.println("=== ТЕСТ ПАТТЕРНА НАБЛЮДАТЕЛЬ ===");
-        CurrencyExchange exchange = new CurrencyExchange();
+        System.out.println("\n=== Снижение запаса ===");
+        phone.removeQuantity(28);
 
-        IObserver news = new NewsAgency();
-        IObserver bank = new BankSystem();
-        IObserver user = new MobileAppUser("Алексей");
+        System.out.println("\n=== Перемещение товара ===");
+        laptop.moveToWarehouse("Склад 2", 15);
 
-        // Подписываем наблюдателей
-        exchange.attach(news);
-        exchange.attach(bank);
-        exchange.attach(user);
+        System.out.println("\n=== Изменение производителя ===");
+        phone.updateManufacturer("Apple");
 
-        System.out.println("\n--- Изменение курса USD ---");
-        exchange.setRate("USD", 89.5);
+        System.out.println("\n=== Отписка менеджера от событий перемещения ===");
+        warehouseManager.unsubscribeFromEvent(ItemMovedEvent.class);
 
-        System.out.println("\n--- Изменение курса EUR (один отписался) ---");
-        exchange.detach(bank); // Удаляем банк из рассылки
-        exchange.setRate("EUR", 97.2);
+        System.out.println("\n=== Еще одно перемещение ===");
+        laptop.moveToWarehouse("Склад 1", 10);
     }
 }
